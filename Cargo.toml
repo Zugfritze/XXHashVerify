@@ -1,0 +1,22 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "xxhash_verify"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mimalloc = "*"
+crossbeam-channel = "*"
+tokio = { version = "*", features = ["full"] }
+xxhash-rust = { version = "*", features = ["xxh3"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+overflow-checks = true
+incremental = false
+rustflags = ["-C", "target_cpu=native", "-Z", "mir-opt-level=3"]

@@ -2,7 +2,7 @@ use crossbeam_channel::{bounded, Receiver};
 use mimalloc::MiMalloc;
 use std::collections::HashMap;
 use std::env;
-use std::io::ErrorKind;
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::sync::Arc;
@@ -16,7 +16,13 @@ static GLOBAL: MiMalloc = MiMalloc;
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    let args = parse_command_line_arguments(&args);
+    let args = match Args::parse_args(&args) {
+        Ok(args) => args,
+        Err(err) => {
+            eprintln!("解析参数时出现错误: {}", err);
+            exit(1)
+        }
+    };
 
     // 创建任务信号量
     let task_semaphore = Arc::new(Semaphore::new(16));
@@ -72,39 +78,34 @@ struct Args<'a> {
     hash_file_path: &'a Path,
 }
 
-fn parse_command_line_arguments(args: &[String]) -> Args {
-    let model = match args.get(1) {
-        Some(model) => match model.as_str() {
-            "-g" => Model::Generate,
-            "-c" => Model::Check,
-            _ => {
-                eprintln!("不支持的模式: {}", model);
-                exit(1)
-            }
-        },
-        None => {
-            eprintln!("缺少模式参数");
-            exit(1)
-        }
-    };
-    let folder_path = match args.get(2) {
-        Some(folder_path) => Path::new(folder_path),
-        None => {
-            eprintln!("缺少文件夹路径参数");
-            exit(1)
-        }
-    };
-    let hash_file_path = match args.get(3) {
-        Some(hash_file_path) => Path::new(hash_file_path),
-        None => {
-            eprintln!("缺少哈希文件路径参数");
-            exit(1)
-        }
-    };
-    Args {
-        model,
-        folder_path,
-        hash_file_path,
+impl Args<'_> {
+    fn parse_args(args: &[String]) -> io::Result<Args> {
+        let model = match args.get(1) {
+            Some(model) => match model.as_str() {
+                "-g" => Model::Generate,
+                "-c" => Model::Check,
+                _ => {
+                    return Err(io::Error::new(
+                        ErrorKind::Other,
+                        format!("不支持的模式: {}", model),
+                    ))
+                }
+            },
+            None => return Err(io::Error::new(ErrorKind::Other, "缺少模式参数")),
+        };
+        let folder_path = match args.get(2) {
+            Some(folder_path) => Path::new(folder_path),
+            None => return Err(io::Error::new(ErrorKind::Other, "缺少文件夹路径参数")),
+        };
+        let hash_file_path = match args.get(3) {
+            Some(hash_file_path) => Path::new(hash_file_path),
+            None => return Err(io::Error::new(ErrorKind::Other, "缺少哈希文件路径参数")),
+        };
+        Ok(Args {
+            model,
+            folder_path,
+            hash_file_path,
+        })
     }
 }
 

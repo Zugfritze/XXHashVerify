@@ -39,7 +39,7 @@ pub async fn compute_hash(file_path: &PathBuf) -> tokio::io::Result<u128> {
 
 pub fn export_all_hash(
     hash_file_path: &Path,
-    hashes: &HashMap<PathBuf, u128>,
+    hash_cache: &HashMap<PathBuf, u128>,
     file_paths: &[PathBuf],
     folder_path: &Path,
 ) -> std::io::Result<()> {
@@ -50,7 +50,7 @@ pub fn export_all_hash(
         .open(hash_file_path)?;
 
     for file_path in file_paths {
-        let hash = match hashes.get(file_path) {
+        let hash = match hash_cache.get(file_path) {
             Some(hash) => hash,
             None => {
                 return Err(tokio::io::Error::new(
